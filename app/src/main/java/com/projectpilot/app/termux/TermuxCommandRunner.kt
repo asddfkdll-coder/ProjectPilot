@@ -104,9 +104,9 @@ class TermuxCommandRunner @Inject constructor(
 
         return runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ctx.startForegroundService(intent)
+                try { ctx.startForegroundService(intent) } catch (e: Exception) { return Result.Failed(e.message ?: "Service start failed") }
             } else {
-                ctx.startService(intent)
+                try { ctx.startService(intent) } catch (e: Exception) { return Result.Failed(e.message ?: "Service start failed") }
             }
             Result.Ok
         }.getOrElse { Result.Failed(it.message ?: "Failed to start Termux service") }
