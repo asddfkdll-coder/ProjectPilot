@@ -28,7 +28,7 @@ class BackupWorker @AssistedInject constructor(
     private val repo: ProjectRepository
 ) : CoroutineWorker(ctx, params) {
 
-    @Inject lateinit var crypto: com.projectpilot.app.security.EncryptionManager
+    @javax.inject.Inject lateinit var crypto: com.projectpilot.app.security.EncryptionManager
 
     override suspend fun doWork(): Result = try {
         val projects = repo.observeAll().first()

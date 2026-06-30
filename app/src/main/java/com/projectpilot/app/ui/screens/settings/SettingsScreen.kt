@@ -44,7 +44,17 @@ class SettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SettingsUiState())
     val state = _state.asStateFlow()
 
-    init { refresh() }
+    init {
+        refresh()
+        checkBackupStatus()
+    }
+
+    private fun checkBackupStatus() = viewModelScope.launch {
+        val workManager = androidx.work.WorkManager.getInstance(ctx)
+        val infos = workManager.getWorkInfosForUniqueWork(BackupWorker.UNIQUE_NAME).get()
+        val isEnabled = infos.any { it.state == androidx.work.WorkInfo.State.ENQUEUED || it.state == androidx.work.WorkInfo.State.RUNNING }
+        _state.value = _state.value.copy(backupEnabled = isEnabled)
+    }
 
     fun toggleBackup(enabled: Boolean) {
         if (enabled) BackupWorker.schedule(ctx) else BackupWorker.cancel(ctx)

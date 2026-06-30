@@ -31,6 +31,13 @@ class AddProjectViewModel @Inject constructor(
     fun addSingle(path: String, onAdded: () -> Unit) = viewModelScope.launch {
         val dir = File(path)
         if (!dir.isDirectory) { _state.value = _state.value.copy(message = "Invalid folder"); return@launch }
+        
+        // Fix: Check for duplicates before adding
+        if (repo.getByPath(dir.absolutePath) != null) {
+            _state.value = _state.value.copy(message = "Project already exists")
+            return@launch
+        }
+
         val det = scanner.detectSingle(dir)
         repo.upsert(
             Project(
