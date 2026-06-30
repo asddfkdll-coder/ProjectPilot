@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.ProjectPilot" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor" tools:targetApi="21">@android:color/transparent</item>
+    </style>
+    <style name="Theme.ProjectPilot.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="postSplashScreenTheme">@style/Theme.ProjectPilot</item>
+    </style>
+</resources>
