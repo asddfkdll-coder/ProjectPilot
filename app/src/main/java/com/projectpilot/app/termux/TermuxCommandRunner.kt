@@ -68,7 +68,16 @@ class TermuxCommandRunner @Inject constructor(
 
         val (execPath, execArgs) = when {
             command != null -> command to (args ?: emptyArray())
-            shellLine != null -> BASH to arrayOf("-lc", shellLine)
+            shellLine != null -> {
+                // If background is true, we wrap the command to echo the PID to stdout.
+                // Termux RUN_COMMAND captures stdout/stderr and returns it via ResultReceiver.
+                val finalCmd = if (background) {
+                    "($shellLine) & PID=$!; echo \"PP_PID:$PID\"; wait $PID"
+                } else {
+                    shellLine
+                }
+                BASH to arrayOf("-lc", finalCmd)
+            }
             else -> return Result.Failed("Either shellLine or command must be provided")
         }
 

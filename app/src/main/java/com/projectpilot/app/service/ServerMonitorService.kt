@@ -64,13 +64,24 @@ class ServerMonitorService : Service() {
             }.toSet()
             
             val died = tracked - alive
+            if (died.isNotEmpty()) {
+                // Update database to clear PIDs for died processes
+                scope.launch {
+                    val active = repo.getActiveProjects()
+                    active.filter { it.lastPid in died }.forEach {
+                        repo.update(it.copy(lastPid = null))
+                    }
+                }
+            }
+
             tracked.clear()
             tracked.addAll(alive)
             
             updateNotification("Monitoring ${alive.size} server(s)" +
                 if (died.isNotEmpty()) " · ${died.size} stopped" else "")
             
-            delay(5_000)
+            // Adaptive delay: longer if no processes are running to save battery
+            delay(if (alive.isEmpty()) 30_000 else 5_000)
         }
     }
 

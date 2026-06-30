@@ -15,8 +15,8 @@ android {
         applicationId = "com.projectpilot.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3.0-final-polish"
+        versionCode = 5
+        versionName = "1.4.0-perf-monitor"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }

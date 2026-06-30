@@ -83,8 +83,24 @@ fun ProjectDetailScreen(
         ) {
             Card(shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Run table", fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Run table", fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium)
+                        
+                        // Status Indicator
+                        val isRunning = p.lastPid != null
+                        Surface(
+                            color = if (isRunning) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (isRunning) "Running (PID: ${p.lastPid})" else "Stopped",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isRunning) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(8.dp))
                     InfoRow("Type", p.type.name)
                     InfoRow("Framework", p.framework ?: "—")
@@ -100,8 +116,19 @@ fun ProjectDetailScreen(
                 Button(onClick = { vm.runInstall() }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Download, null); Spacer(Modifier.width(6.dp)); Text("Install")
                 }
-                Button(onClick = { vm.runServer() }, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text("Start")
+                val isRunning = p.lastPid != null
+                if (isRunning) {
+                    Button(
+                        onClick = { vm.stopServer() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(Icons.Default.Stop, null); Spacer(Modifier.width(6.dp)); Text("Stop")
+                    }
+                } else {
+                    Button(onClick = { vm.runServer() }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(6.dp)); Text("Start")
+                    }
                 }
             }
 

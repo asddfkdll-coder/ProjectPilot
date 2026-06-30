@@ -43,25 +43,36 @@ class ProjectDetailViewModel @Inject constructor(
         termux.runInstall(p.path, p.installCommand ?: "echo 'No install command'") 
     }
 
-    fun runServer() = act { p ->
-        // To capture PID, we need to use the base run method with a receiver
+    fun runServer(background: Boolean = false) = act { p ->
         termux.run(
             shellLine = p.runCommand ?: "echo 'No run command'",
             workdir = p.path,
-            background = false,
+            background = background,
             sessionLabel = p.name,
             onResult = { resultCode, data ->
-                val pid = data?.getInt("stdout") // Termux can be configured to return PID in stdout for background or via special scripts
-                // Note: Termux RUN_COMMAND doesn't natively return PID in a simple way for foreground tasks.
-                // This is a placeholder for the logic to handle the result.
+                val stdout = data?.getString("stdout")
+                val pid = stdout?.lineSequence()
+                    ?.find { it.startsWith("PP_PID:") }
+                    ?.substringAfter("PP_PID:")
+                    ?.toIntOrNull()
+
                 if (resultCode == 0) {
-                    // Update project lastRunAt
                     viewModelScope.launch {
-                        repo.update(p.copy(lastRunAt = System.currentTimeMillis()))
+                        repo.update(p.copy(
+                            lastRunAt = System.currentTimeMillis(),
+                            lastPid = pid ?: p.lastPid
+                        ))
                     }
                 }
             }
         )
+    }
+
+    fun stopServer() = viewModelScope.launch {
+        val p = _state.value.project ?: return@launch
+        val pid = p.lastPid ?: return@launch
+        termux.killPid(pid)
+        repo.update(p.copy(lastPid = null))
     }
 
     fun runCustom(cmd: String) = act { p -> termux.run(shellLine = cmd, workdir = p.path, sessionLabel = p.name) }
