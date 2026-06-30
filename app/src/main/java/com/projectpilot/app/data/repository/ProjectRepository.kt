@@ -13,6 +13,7 @@ class ProjectRepository @Inject constructor(
     fun observeAll(): Flow<List<Project>> = dao.observeAll()
     suspend fun getById(id: Long): Project? = dao.getById(id)
     suspend fun getByPath(path: String): Project? = dao.getByPath(path)
+    suspend fun getActiveProjects(): List<Project> = dao.getActiveProjects()
     suspend fun upsert(project: Project): Long = dao.upsert(project)
     suspend fun update(project: Project) = dao.update(project)
     suspend fun delete(project: Project) = dao.delete(project)

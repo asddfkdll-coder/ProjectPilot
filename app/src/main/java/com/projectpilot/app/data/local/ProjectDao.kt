@@ -15,6 +15,9 @@ interface ProjectDao {
     @Query("SELECT * FROM projects WHERE path = :path LIMIT 1")
     suspend fun getByPath(path: String): Project?
 
+    @Query("SELECT * FROM projects WHERE lastPid IS NOT NULL")
+    suspend fun getActiveProjects(): List<Project>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(project: Project): Long
 

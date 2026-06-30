@@ -28,6 +28,8 @@ class BackupWorker @AssistedInject constructor(
     private val repo: ProjectRepository
 ) : CoroutineWorker(ctx, params) {
 
+    @Inject lateinit var crypto: com.projectpilot.app.security.EncryptionManager
+
     override suspend fun doWork(): Result = try {
         val projects = repo.observeAll().first()
         val dir = File(applicationContext.getExternalFilesDir(null), "backups").apply { mkdirs() }
@@ -40,7 +42,8 @@ class BackupWorker @AssistedInject constructor(
                 name = it.name, path = it.path, type = it.type.name,
                 framework = it.framework, installCommand = it.installCommand,
                 runCommand = it.runCommand, defaultPort = it.defaultPort,
-                notes = it.notes, customCommands = it.customCommands
+                notes = it.notes, customCommands = it.customCommands,
+                envBlob = crypto.getEnv(it.id)
             )
         }
         file.writeText(json.encodeToString(BackupFile(stamp, snapshot)))
@@ -57,7 +60,8 @@ class BackupWorker @AssistedInject constructor(
         val name: String, val path: String, val type: String,
         val framework: String?, val installCommand: String?,
         val runCommand: String?, val defaultPort: Int?,
-        val notes: String, val customCommands: String
+        val notes: String, val customCommands: String,
+        val envBlob: String? = null
     )
     @kotlinx.serialization.Serializable
     data class BackupFile(val createdAt: String, val projects: List<BackupRecord>)

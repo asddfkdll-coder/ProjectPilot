@@ -31,10 +31,12 @@ class NodeProjectDetector : ProjectDetector {
             "@nestjs/core" in deps -> "Nest.js"
             "express" in deps -> "Express"
             "fastify" in deps -> "Fastify"
-            "react" in deps && "react-scripts" in deps -> "Create React App"
+            "react" in deps && ("react-scripts" in deps || "vite" in deps) -> "React"
             "vite" in deps -> "Vite"
             "vue" in deps -> "Vue"
             "@angular/core" in deps -> "Angular"
+            "nuxt" in deps -> "Nuxt"
+            "svelte" in deps -> "Svelte"
             else -> "Node.js"
         }
         val runCmd = when {
@@ -44,9 +46,11 @@ class NodeProjectDetector : ProjectDetector {
             else -> "node ${File(dir, "index.js").takeIf { it.exists() }?.name ?: "."}"
         }
         val port = when (framework) {
-            "Next.js", "Create React App" -> 3000
-            "Vite", "Vue" -> 5173
+            "Next.js", "React" -> 3000
+            "Vite", "Vue", "Svelte" -> 5173
+            "Nuxt" -> 3000
             "Angular" -> 4200
+            "Nest.js" -> 3000
             else -> 3000
         }
         return DetectionResult(
@@ -73,24 +77,37 @@ class PythonProjectDetector : ProjectDetector {
         if (!hasReq && !hasPyproject && !managePy.exists() && !appPy.exists() && !mainPy.exists())
             return null
 
-        val deps = File(dir, "requirements.txt").safeReadText()
-            ?.lines()?.mapNotNull { it.substringBefore("==").substringBefore(">").trim().ifBlank { null } }
-            ?.filter { !it.startsWith("#") }
-            ?: emptyList()
+        val reqContent = File(dir, "requirements.txt").safeReadText().orEmpty()
+        val pyprojectContent = File(dir, "pyproject.toml").safeReadText().orEmpty()
+        val allContent = reqContent + "\n" + pyprojectContent
+
+        val deps = allContent.lines()
+            .mapNotNull { line ->
+                line.substringBefore("==").substringBefore(">").substringBefore("[").trim()
+                    .takeIf { it.isNotEmpty() && !it.startsWith("#") && !it.startsWith("[") }
+            }
 
         val framework = when {
-            managePy.exists() -> "Django"
+            managePy.exists() || deps.any { it.equals("django", true) } -> "Django"
             deps.any { it.equals("fastapi", true) } -> "FastAPI"
             deps.any { it.equals("flask", true) } || appPy.exists() -> "Flask"
+            deps.any { it.equals("streamlit", true) } -> "Streamlit"
             else -> "Python"
         }
         val runCmd = when (framework) {
             "Django" -> "python manage.py runserver 0.0.0.0:8000"
             "FastAPI" -> "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
             "Flask" -> "FLASK_APP=app.py flask run --host 0.0.0.0 --port 5000"
+            "Streamlit" -> "streamlit run main.py --server.address 0.0.0.0 --server.port 8501"
             else -> "python ${if (mainPy.exists()) "main.py" else "app.py"}"
         }
-        val port = when (framework) { "Django" -> 8000; "FastAPI" -> 8000; "Flask" -> 5000; else -> 8000 }
+        val port = when (framework) { 
+            "Django" -> 8000 
+            "FastAPI" -> 8000 
+            "Flask" -> 5000 
+            "Streamlit" -> 8501
+            else -> 8000 
+        }
         return DetectionResult(
             type = ProjectType.PYTHON,
             framework = framework,

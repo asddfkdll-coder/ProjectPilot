@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.ResultReceiver
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,7 +59,8 @@ class TermuxCommandRunner @Inject constructor(
         args: Array<String>? = null,
         workdir: String,
         background: Boolean = false,
-        sessionLabel: String? = null
+        sessionLabel: String? = null,
+        onResult: ((Int, Bundle?) -> Unit)? = null
     ): Result {
         if (!isTermuxInstalled()) return Result.TermuxNotInstalled
         val safeWorkdir = sanitizeWorkdir(workdir)
@@ -77,6 +82,15 @@ class TermuxCommandRunner @Inject constructor(
             putExtra(EXTRA_BACKGROUND, background)
             putExtra(EXTRA_SESSION_ACTION, if (background) "1" else "0") // 0 = Keep session, 1 = Finish session
             if (sessionLabel != null) putExtra(EXTRA_COMMAND_LABEL, sessionLabel)
+            
+            if (onResult != null) {
+                val receiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
+                    override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
+                        onResult(resultCode, resultData)
+                    }
+                }
+                putExtra(EXTRA_RESULT_RECEIVER, receiver)
+            }
         }
 
         return runCatching {
@@ -99,6 +113,11 @@ class TermuxCommandRunner @Inject constructor(
         run(shellLine = runCommand, workdir = projectPath, background = false,
             sessionLabel = sessionLabel)
 
+    /** Convenience: start a project server in the background (no UI session). */
+    fun runBackgroundServer(projectPath: String, runCommand: String, sessionLabel: String = "Server"): Result =
+        run(shellLine = runCommand, workdir = projectPath, background = true,
+            sessionLabel = sessionLabel)
+
     /** Convenience: stop a process by PID inside Termux. */
     fun killPid(pid: Int): Result =
         run(shellLine = "kill -TERM $pid || kill -KILL $pid", workdir = HOME, background = true,
@@ -108,8 +127,10 @@ class TermuxCommandRunner @Inject constructor(
     private fun sanitizeWorkdir(input: String): String? {
         if (input.isBlank()) return null
         if (input.length > 1024) return null
-        // Disallow newline / null / shell metacharacters in the workdir itself.
-        if (input.any { it == '\n' || it == '\u0000' || it == ';' || it == '`' || it == '$' }) return null
+        // Disallow newline / null / shell metacharacters that could lead to injection.
+        // We allow spaces, dashes, and underscores which are common in project paths.
+        val forbidden = setOf('\n', '\u0000', ';', '`', '$', '|', '&', '>', '<', '(', ')', '{', '}', '[', ']', '*', '?', '!', '\\', '"', '\'')
+        if (input.any { it in forbidden }) return null
         return input
     }
 
@@ -124,6 +145,7 @@ class TermuxCommandRunner @Inject constructor(
         const val EXTRA_BACKGROUND = "com.termux.RUN_COMMAND_BACKGROUND"
         const val EXTRA_SESSION_ACTION = "com.termux.RUN_COMMAND_SESSION_ACTION"
         const val EXTRA_COMMAND_LABEL = "com.termux.RUN_COMMAND_COMMAND_LABEL"
+        const val EXTRA_RESULT_RECEIVER = "com.termux.RUN_COMMAND_RESULT_RECEIVER"
 
         const val BASH = "/data/data/com.termux/files/usr/bin/bash"
         const val HOME = "/data/data/com.termux/files/home"

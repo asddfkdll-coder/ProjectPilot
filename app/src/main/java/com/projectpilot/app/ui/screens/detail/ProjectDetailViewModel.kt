@@ -39,9 +39,38 @@ class ProjectDetailViewModel @Inject constructor(
         _state.value = _state.value.copy(env = env, message = "Saved .env (encrypted)")
     }
 
-    fun runInstall() = act { p -> termux.runInstall(p.path, p.installCommand ?: "echo 'No install command'") }
-    fun runServer() = act { p -> termux.runServer(p.path, p.runCommand ?: "echo 'No run command'", p.name) }
+    fun runInstall() = act { p -> 
+        termux.runInstall(p.path, p.installCommand ?: "echo 'No install command'") 
+    }
+
+    fun runServer() = act { p ->
+        // To capture PID, we need to use the base run method with a receiver
+        termux.run(
+            shellLine = p.runCommand ?: "echo 'No run command'",
+            workdir = p.path,
+            background = false,
+            sessionLabel = p.name,
+            onResult = { resultCode, data ->
+                val pid = data?.getInt("stdout") // Termux can be configured to return PID in stdout for background or via special scripts
+                // Note: Termux RUN_COMMAND doesn't natively return PID in a simple way for foreground tasks.
+                // This is a placeholder for the logic to handle the result.
+                if (resultCode == 0) {
+                    // Update project lastRunAt
+                    viewModelScope.launch {
+                        repo.update(p.copy(lastRunAt = System.currentTimeMillis()))
+                    }
+                }
+            }
+        )
+    }
+
     fun runCustom(cmd: String) = act { p -> termux.run(shellLine = cmd, workdir = p.path, sessionLabel = p.name) }
+
+    fun deleteProject() = viewModelScope.launch {
+        val p = _state.value.project ?: return@launch
+        repo.delete(p)
+        crypto.clearEnv(p.id)
+    }
 
     private fun act(block: (Project) -> TermuxCommandRunner.Result) = viewModelScope.launch {
         val p = _state.value.project ?: return@launch

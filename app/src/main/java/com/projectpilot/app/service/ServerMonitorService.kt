@@ -8,9 +8,11 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.projectpilot.app.ProjectPilotApp
 import com.projectpilot.app.R
+import com.projectpilot.app.data.repository.ProjectRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import java.io.File
+import javax.inject.Inject
 
 /**
  * Foreground service that reads /proc/[pid]/stat to monitor CPU/RAM of tracked PIDs.
@@ -21,26 +23,53 @@ import java.io.File
 @AndroidEntryPoint
 class ServerMonitorService : Service() {
 
+    @Inject lateinit var repo: ProjectRepository
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val tracked = mutableSetOf<Int>()
+    private var loopJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildNotification("Monitoring 0 servers"))
+        startForeground(NOTIFICATION_ID, buildNotification("Monitoring..."))
+        
         intent?.getIntExtra(EXTRA_ADD_PID, -1)?.takeIf { it > 0 }?.let { tracked.add(it) }
         intent?.getIntExtra(EXTRA_REMOVE_PID, -1)?.takeIf { it > 0 }?.let { tracked.remove(it) }
-        scope.launch { loop() }
+        
+        if (loopJob == null || loopJob?.isActive == false) {
+            loopJob = scope.launch { 
+                // Initialize from DB on first run
+                if (tracked.isEmpty()) {
+                    val active = repo.getActiveProjects()
+                    active.forEach { it.lastPid?.let { pid -> tracked.add(pid) } }
+                }
+                loop() 
+            }
+        }
+        
         return START_STICKY
     }
 
     private suspend fun loop() {
         while (currentCoroutineContext().isActive) {
-            val alive = tracked.filter { File("/proc/$it").exists() }.toSet()
+            // Filter alive PIDs. Note: /proc access limitation on Android 7+
+            val alive = tracked.filter { pid ->
+                try {
+                    File("/proc/$pid").exists()
+                } catch (e: Exception) {
+                    // On some devices/OS versions, we might get permission denied instead of exists=false
+                    false 
+                }
+            }.toSet()
+            
             val died = tracked - alive
-            tracked.clear(); tracked.addAll(alive)
+            tracked.clear()
+            tracked.addAll(alive)
+            
             updateNotification("Monitoring ${alive.size} server(s)" +
                 if (died.isNotEmpty()) " · ${died.size} stopped" else "")
+            
             delay(5_000)
         }
     }

@@ -26,6 +26,7 @@ fun ProjectDetailScreen(
     LaunchedEffect(projectId) { vm.load(projectId) }
     val state by vm.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); vm.clearMessage() }
@@ -48,10 +49,30 @@ fun ProjectDetailScreen(
                     IconButton(onClick = { onOpenGit(projectId) }) {
                         Icon(Icons.Default.AccountTree, contentDescription = "Git")
                     }
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Project", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             )
         }
     ) { padding ->
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirm = false },
+                title = { Text("Delete Project?") },
+                text = { Text("This will remove the project from ProjectPilot. The actual files on disk will NOT be deleted.") },
+                confirmButton = {
+                    TextButton(onClick = { 
+                        vm.deleteProject()
+                        showDeleteConfirm = false
+                        onBack()
+                    }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                }
+            )
+        }
         val p = state.project ?: return@Scaffold
         var env by remember(state.env) { mutableStateOf(state.env) }
         var custom by remember { mutableStateOf("") }
