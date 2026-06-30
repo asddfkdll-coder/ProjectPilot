@@ -75,7 +75,7 @@ class TermuxCommandRunner @Inject constructor(
             putExtra(EXTRA_ARGUMENTS, execArgs)
             putExtra(EXTRA_WORKDIR, safeWorkdir)
             putExtra(EXTRA_BACKGROUND, background)
-            putExtra(EXTRA_SESSION_ACTION, if (background) "0" else "0")
+            putExtra(EXTRA_SESSION_ACTION, if (background) "1" else "0") // 0 = Keep session, 1 = Finish session
             if (sessionLabel != null) putExtra(EXTRA_COMMAND_LABEL, sessionLabel)
         }
 

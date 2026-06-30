@@ -17,11 +17,14 @@ class NodeProjectDetector : ProjectDetector {
         val pkg = File(dir, "package.json").takeIf { it.exists() } ?: return null
         val raw = pkg.safeReadText() ?: return null
         val obj = runCatching { LENIENT_JSON.parseToJsonElement(raw).jsonObject }.getOrNull()
-            ?: return DetectionResult(ProjectType.NODE, runCommand = "npm start")
 
-        val deps = (obj["dependencies"] as? JsonObject)?.keys.orEmpty() +
-                (obj["devDependencies"] as? JsonObject)?.keys.orEmpty()
-        val scripts = (obj["scripts"] as? JsonObject)
+        val deps = if (obj != null) {
+            (obj["dependencies"] as? JsonObject)?.keys.orEmpty() +
+            (obj["devDependencies"] as? JsonObject)?.keys.orEmpty()
+        } else {
+            emptySet()
+        }
+        val scripts = (obj?.get("scripts") as? JsonObject)
 
         val framework = when {
             "next" in deps -> "Next.js"
@@ -166,7 +169,7 @@ class GoProjectDetector : ProjectDetector {
     override val priority = 50
     override fun detect(dir: File): DetectionResult? {
         if (!File(dir, "go.mod").exists()) return null
-        val main = dir.walkTopDown().maxDepth(2).firstOrNull { it.name == "main.go" }
+        val main = dir.walkTopDown().maxDepth(5).firstOrNull { it.name == "main.go" } // Increased depth for better detection
         return DetectionResult(
             type = ProjectType.GO,
             framework = "Go",
