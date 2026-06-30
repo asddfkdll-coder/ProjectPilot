@@ -72,7 +72,9 @@ class TermuxCommandRunner @Inject constructor(
                 // If background is true, we wrap the command to echo the PID to stdout.
                 // Termux RUN_COMMAND captures stdout/stderr and returns it via ResultReceiver.
                 val finalCmd = if (background) {
-                    "($shellLine) & PID=$!; echo \"PP_PID:$PID\"; wait $PID"
+                    // Start process in background, echo PID immediately, then wait for it.
+                    // We use { ... } & to ensure we get the correct background PID.
+                    "{ $shellLine; } & PID=$!; echo \"PP_PID:$PID\"; wait $PID"
                 } else {
                     shellLine
                 }

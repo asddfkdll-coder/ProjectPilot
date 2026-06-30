@@ -19,6 +19,11 @@ internal fun File.safeReadText(maxBytes: Long = 256 * 1024): String? = try {
 
 /** True only if path is inside dir (prevents traversal). */
 internal fun File.isInside(dir: File): Boolean = try {
-    canonicalPath.startsWith(dir.canonicalPath + File.separator) ||
-        canonicalPath == dir.canonicalPath
+    val canonicalBase = dir.canonicalFile
+    var current: File? = canonicalFile
+    while (current != null) {
+        if (current == canonicalBase) return true
+        current = current.parentFile
+    }
+    false
 } catch (_: Throwable) { false }

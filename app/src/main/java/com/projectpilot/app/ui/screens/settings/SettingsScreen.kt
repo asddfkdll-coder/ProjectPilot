@@ -170,7 +170,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 }
             }
 
-            Text("ProjectPilot v1.1.0",
+            Text("ProjectPilot v1.4.0",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
